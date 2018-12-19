@@ -13,6 +13,7 @@ require 'logger'
 require 'json'
 require 'yaml'
 require 'resolve/hostname'
+require 'diplomat'
 
 require_relative '../lib/monitoring'
 
@@ -54,6 +55,8 @@ module Sinatra
       @redis_host        = ENV.fetch('REDIS_HOST'             , 'redis' )
       @redis_port        = ENV.fetch('REDIS_PORT'             , 6379 )
 
+      @consul_host       = ENV.fetch('CONSUL_HOST'            , 'consul' )
+
       @mysql_host        = ENV.fetch('MYSQL_HOST'             , 'database')
       @mysql_schema      = ENV.fetch('DISCOVERY_DATABASE_NAME', 'discovery')
       @mysql_user        = ENV.fetch('DISCOVERY_DATABASE_USER', 'discovery')
@@ -75,20 +78,23 @@ module Sinatra
     # -----------------------------------------------------------------------------
 
     config = {
-      :mq       => {
-        :host      => @mq_host,
-        :port      => @mq_port,
-        :queue     => @mq_queue
+      mq: {
+        host: @mq_host,
+        port: @mq_port,
+        queue: @mq_queue
       },
-      :redis    => {
-        :host      => @redis_host,
-        :port      => @redis_port
+      redis: {
+        host: @redis_host,
+        port: @redis_port
       },
-      :mysql    => {
-        :host      => @mysql_host,
-        :schema    => @mysql_schema,
-        :user      => @mysql_user,
-        :password  => @mysql_password
+      mysql: {
+        host: @mysql_host,
+        schema: @mysql_schema,
+        user: @mysql_user,
+        password: @mysql_password
+      },
+      consul: {
+        host: @consul_host
       }
     }
 

@@ -1,0 +1,121 @@
+---
+version: '3.3'
+
+networks:
+  frontend:
+  backend:
+  database:
+
+volumes:
+  database:
+    driver: local
+  redis:
+    driver: local
+  carbon:
+    driver: local
+  icinga:
+    driver: local
+
+services:
+
+  consul-master:
+    restart: always
+    image: bodsch/docker-consul
+    container_name: consul-master
+    hostname: consul-master
+    ports:
+      - 8400
+      - 8500
+    command: 'agent -data-dir /data -server -bootstrap-expect 1 -ui -client=0.0.0.0'
+    # -config-file=/etc/consul.d/server.json'
+    networks:
+      - backend
+
+  beanstalkd:
+    restart: always
+    image: bodsch/docker-beanstalkd:1.10
+    container_name: beanstalkd
+    hostname: beanstalkd
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - database
+      - backend
+
+  database:
+    restart: always
+    image: bodsch/docker-mariadb
+    container_name: database
+    hostname: database
+    environment:
+      MARIADB_SYSTEM_USER: root
+      MARIADB_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    #volumes:
+    #  - /etc/localtime:/etc/localtime:ro
+    #  - database:/srv
+    networks:
+      - database
+      - backend
+
+  redis:
+    restart: always
+    image: redis:4-alpine
+    container_name: redis
+    hostname: redis
+    ports:
+      - 6379:6379
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - redis:/data
+    networks:
+      - database
+      - backend
+
+  nginx:
+    restart: always
+    image: bodsch/docker-nginx:1.12.2-r1
+    container_name: nginx
+    hostname: nginx
+    ports:
+      - 80:80
+      - 443:443
+    depends_on:
+      - cm-rest-service
+    links:
+      - cm-rest-service
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+      - ../config/nginx/etc/nginx/sites-enabled/01-all-in-one.conf:/etc/nginx/sites-enabled/01-all-in-one.conf:ro
+      - ../config/nginx/etc/nginx/nginx.conf-aio:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/secure/localhost:ro
+    networks:
+      - frontend
+      - backend
+
+  # CoreMedia Glue and Logic
+  #
+  cm-rest-service:
+    restart: always
+    build: ../../docker-cm-rest-service
+    container_name: cm-rest-service
+    hostname: cm-rest-service
+    environment:
+      LOG_LEVEL: debug
+      MYSQL_ROOT_PASS: ${MYSQL_ROOT_PASSWORD}
+    depends_on:
+      - redis
+      - database
+      - consul-master
+    links:
+      - redis
+      - database
+      - consul-master:consul
+    volumes:
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - frontend
+      - backend
+      - database
+    extra_hosts:
+      osmc.local: 192.168.122.60
+      blueprint-box: 192.168.252.100

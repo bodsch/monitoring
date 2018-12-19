@@ -30,10 +30,13 @@ module Monitoring
       mysql_schema   = settings.dig(:mysql, :schema)
       mysql_user     = settings.dig(:mysql, :user)
       mysql_password = settings.dig(:mysql, :password)
+      consul_host    = settings.dig(:consul, :host)
+      consul_port    = settings.dig(:consul, :port) || 8500
 
-      mq_settings    = { beanstalk: { host: mq_host, port: mq_port, queue: mq_queue } }
-      mysql_settings = { mysql: { host: mysql_host, user: mysql_user, password: mysql_password, schema: mysql_schema } }
-      redis_settings = { redis: { host: redis_host } }
+      mq_settings     = { beanstalk: { host: mq_host, port: mq_port, queue: mq_queue } }
+      mysql_settings  = { mysql: { host: mysql_host, user: mysql_user, password: mysql_password, schema: mysql_schema } }
+      redis_settings  = { redis: { host: redis_host } }
+      consul_settings = { consul: { host: consul_host, port: consul_port } }
 
       version              = Monitoring::VERSION
       date                 = Monitoring::DATE
@@ -46,6 +49,7 @@ module Monitoring
       logger.info( "    - mysql        : #{mysql_host}@#{mysql_schema}" )
       logger.info( "    - redis        : #{redis_host}:#{redis_port}" )
       logger.info( "    - message queue: #{mq_host}:#{mq_port}/#{mq_queue}" )
+      logger.info( "    - consul       : #{consul_host}:#{consul_port}" )
       logger.info( '-----------------------------------------------------------------' )
       logger.info( '' )
 
@@ -54,6 +58,19 @@ module Monitoring
       @mq_producer = MessageQueue::Producer.new( mq_settings )
       @database    = Storage::MySQL.new( mysql_settings )
 
+      consul      = Diplomat.configure do |config|
+        # Set up a custom Consul URL
+        config.url = "http://#{consul_host}:#{consul_port}"
+        # Set up a custom Faraday Middleware
+        #config.middleware = MyCustomMiddleware
+        # Connect into consul with custom access token (ACL)
+        #config.acl_token =  "xxxxxxxx-yyyy-zzzz-1111-222222222222"
+        # Set extra Faraday configuration options
+        #config.options = {ssl: { version: :TLSv1_2 }}
+      end
+
+      logger.debug( "consul: #{consul.inspect}" )
+      logger.debug( "consul: #{Diplomat::Status.leader()}")
     end
 
 
